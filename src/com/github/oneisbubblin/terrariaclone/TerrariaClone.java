@@ -3,6 +3,7 @@ package com.github.oneisbubblin.terrariaclone;
 import com.github.oneisbubblin.terrariaclone.entity.Entity;
 import com.github.oneisbubblin.terrariaclone.entity.EntityPlayer;
 import com.github.oneisbubblin.terrariaclone.entity.EntityShootingStar;
+import com.github.oneisbubblin.terrariaclone.ui.Camera;
 import com.github.oneisbubblin.terrariaclone.ui.ScreenLocation;
 import com.github.oneisbubblin.terrariaclone.world.Location;
 
@@ -14,7 +15,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferStrategy;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 public class TerrariaClone extends JFrame implements KeyListener, MouseListener, Runnable
@@ -26,13 +26,15 @@ public class TerrariaClone extends JFrame implements KeyListener, MouseListener,
         INSTANCE.run();
     }
 
-    public final int width;
-    public final int halfWidth;
-    public final int height;
-    public final int halfHeight;
+    private final Camera camera;
+    public  final int    width;
+    public  final int    halfWidth;
+    public  final int    height;
+    public  final int    halfHeight;
 
-    private boolean running;
-    private int     fps;
+    private boolean        running;
+    private int            fps;
+    private ScreenLocation renderLocation;
 
     private final EntityPlayer         player   ;
     private final Set         <Entity> entitySet;
@@ -48,8 +50,10 @@ public class TerrariaClone extends JFrame implements KeyListener, MouseListener,
 
         this.running = false;
 
-        this.player    = new EntityPlayer(new Location(0, 0));
-        this.entitySet = new HashSet<>();
+        this.player         = new EntityPlayer(new Location(0, 0));
+        this.camera         = new Camera(player.getLocation());
+        this.renderLocation = new ScreenLocation(0, 0);
+        this.entitySet      = new HashSet<>();
 
         this.movement = 0;
     }
@@ -108,7 +112,7 @@ public class TerrariaClone extends JFrame implements KeyListener, MouseListener,
     @Override
     public synchronized void mousePressed(final MouseEvent event)
     {
-        final Location location = new Location(new ScreenLocation(event.getX(), event.getY()));
+        final Location location = camera.translate(new ScreenLocation(event.getX(), event.getY()), new Location(0, 0));
         entitySet.add(new EntityShootingStar(location));
     }
 
@@ -124,17 +128,14 @@ public class TerrariaClone extends JFrame implements KeyListener, MouseListener,
     private void onTick()
     {
         final Location location = player.getLocation();
-        location.add((((movement & 0b1000) == 0 ? 0 : 1) + ((movement & 0b10) == 0 ? 0 : -1)) * 3, (((movement & 0b100) == 0 ? 0 : 1) + ((movement & 0b1) == 0 ? 0 : -1)) * 3);
+        location.x += (((movement & 0b1000) == 0 ? 0 : 1) + ((movement & 0b10) == 0 ? 0 : -1)) * 2;
+        location.y += (((movement & 0b100) == 0 ? 0 : 1) + ((movement & 0b1) == 0 ? 0 : -1)) * 2;
     }
 
     private synchronized Graphics onRender(final Graphics graphics)
     {
         for(final Entity entity : entitySet)
-        {
-            final Image          image    = entity.getTexture().image;
-            final ScreenLocation position = new ScreenLocation(entity.getLocation());
-            graphics.drawImage(image, position.x - image.getWidth(null) / 2, position.y - image.getHeight(null) / 2, null);
-        }
+            entity.onRender(camera, renderLocation, graphics);
 
         fps++;
         return graphics;
